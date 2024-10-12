@@ -48,7 +48,7 @@ def index_to_position(index: Index, strides: Strides) -> int:
     position = 0
     for i, stride in zip(index, strides):
         position += i * stride
-    
+
 
 def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
     """Convert an `ordinal` to an index in the `shape`.
@@ -63,13 +63,7 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
 
     """
     # TODO: Implement for Task 2.1.
-    stride = 1
-    strides = []
-
-    for s in reversed(shape):
-        strides.append(stride)
-        stride *= s
-    strides.reverse()
+    strides = strides_from_shape(shape)
 
     for i, s in enumerate(strides):
         out_index[i] = ordinal // s
