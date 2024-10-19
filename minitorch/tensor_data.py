@@ -91,11 +91,11 @@ def broadcast_index(
 
     """
     # TODO: Implement for Task 2.2.
-    for i in range(len(shape) -1, -1, -1):
+    for i in range(len(shape) - 1, -1, -1):
         # Index in output tensor
         j = i - (len(big_shape) - len(shape))
 
-        if j >= 0: # Dimension exists in both shapes
+        if j >= 0:  # Dimension exists in both shapes
             if big_shape[j] == shape[i]:
                 out_index[i] = big_index[j]
             elif big_shape[j] == 1:
@@ -135,7 +135,7 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
             result.append(d2)
         elif d2 == 1:
             result.append(d1)
-        elif d1 == s2:
+        elif d1 == d2:
             result.append(d1)
         else:
             raise IndexingError(
