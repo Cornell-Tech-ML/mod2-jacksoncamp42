@@ -91,7 +91,19 @@ def broadcast_index(
 
     """
     # TODO: Implement for Task 2.2.
-    raise NotImplementedError("Need to implement for Task 2.2")
+    for i in range(len(shape) -1, -1, -1):
+        # Index in output tensor
+        j = i - (len(big_shape) - len(shape))
+
+        if j >= 0: # Dimension exists in both shapes
+            if big_shape[j] == shape[i]:
+                out_index[i] = big_index[j]
+            elif big_shape[j] == 1:
+                out_index[i] = 0
+            else:
+                out_index[i] = big_index[j] % shape[i]
+        else:
+            out_index[i] = 0
 
 
 def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
@@ -109,7 +121,27 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
 
     """
     # TODO: Implement for Task 2.2.
-    raise NotImplementedError("Need to implement for Task 2.2")
+    s1 = list(shape1)
+    s2 = list(shape2)
+
+    while len(s1) < len(s2):
+        s1.insert(0, 1)
+    while len(s2) < len(s1):
+        s2.insert(0, 1)
+
+    result = []
+    for d1, d2 in zip(s1, s2):
+        if d1 == 1:
+            result.append(d2)
+        elif d2 == 1:
+            result.append(d1)
+        elif d1 == s2:
+            result.append(d1)
+        else:
+            raise IndexingError(
+                f"Shapes {shape1} and {shape2} cannot be broadcast together"
+            )
+    return tuple(result)
 
 
 def strides_from_shape(shape: UserShape) -> UserStrides:
