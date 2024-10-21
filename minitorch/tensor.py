@@ -320,7 +320,7 @@ class Tensor:
 
     def all(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
-            return All.apply(self)
+            return All.apply(self, None)
         else:
             return All.apply(self, Tensor.make([dim], (1,), backend=self.backend))
 
