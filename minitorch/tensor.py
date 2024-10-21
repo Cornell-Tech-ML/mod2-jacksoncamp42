@@ -12,26 +12,26 @@ from .autodiff import Context, Variable, backpropagate
 from .tensor_data import TensorData
 
 # Comment these out if not yet implemented
-# from .tensor_functions import (
-#     EQ,
-#     LT,
-#     Add,
-#     All,
-#     Copy,
-#     Exp,
-#     Inv,
-#     IsClose,
-#     Log,
-#     MatMul,
-#     Mul,
-#     Neg,
-#     Permute,
-#     ReLU,
-#     Sigmoid,
-#     Sum,
-#     View,
-#     tensor,
-# )
+from .tensor_functions import (
+    EQ,
+    LT,
+    Add,
+    All,
+    Copy,
+    Exp,
+    Inv,
+    IsClose,
+    Log,
+    MatMul,
+    Mul,
+    Neg,
+    Permute,
+    ReLU,
+    Sigmoid,
+    Sum,
+    View,
+    tensor,
+)
 
 if TYPE_CHECKING:
     from typing import Any, Iterable, List, Optional, Sequence, Tuple, Type, Union
@@ -285,3 +285,66 @@ class Tensor:
 
     # Functions
     # TODO: Implement for Task 2.3.
+    def __add__(self, b: TensorLike) -> Tensor:
+        return Add.apply(self, self._ensure_tensor(b))
+
+    def __sub__(self, b: TensorLike) -> Tensor:
+        return Add.apply(self, Neg.apply(self._ensure_tensor(b)))
+
+    def __mul__(self, b: TensorLike) -> Tensor:
+        return Mul.apply(self, self._ensure_tensor(b))
+
+    def __lt__(self, b: TensorLike) -> Tensor:
+        return LT.apply(self, self._ensure_tensor(b))
+
+    def __eq__(self, b: TensorLike) -> Tensor:
+        return EQ.apply(self, self._ensure_tensor(b))
+
+    def __gt__(self, b: TensorLike) -> Tensor:
+        return LT.apply(self._ensure_tensor(b), self)
+
+    def __neg__(self) -> Tensor:
+        return Neg.apply(self)
+
+    def __radd__(self, b: TensorLike) -> Tensor:
+        return Add.apply(self._ensure_tensor(b), self)
+
+    def __rmul__(self, b: TensorLike) -> Tensor:
+        return Mul.apply(self._ensure_tensor(b), self)
+
+    def all(self) -> Tensor:
+        return All.apply(self, self.dims - 1)
+
+    def is_close(self, b: Tensor) -> Tensor:
+        return IsClose.apply(self, b)
+
+    def sigmoid(self) -> Tensor:
+        return Sigmoid.apply(self)
+
+    def relu(self) -> Tensor:
+        return ReLU.apply(self)
+
+    def log(self) -> Tensor:
+        return Log.apply(self)
+
+    def exp(self) -> Tensor:
+        return Exp.apply(self)
+
+    def sum(self, dim: Optional[int] = None) -> Tensor:
+        if dim is None:
+            return Sum.apply(self, self.dims - 1)
+        return Sum.apply(self, dim)
+
+    def mean(self, dim: Optional[int] = None) -> Tensor:
+        if dim is None:
+            return self.sum() / self.size
+        return self.sum(dim) / self.shape[dim]
+
+    def permute(self, *order: int) -> Tensor:
+        return Permute.apply(self, tensor(list(order)))
+
+    def view(self, *shape: int) -> Tensor:
+        return View.apply(self, tensor(list(shape)))
+
+    def zero_grad_(self) -> None:
+        self.grad = None
