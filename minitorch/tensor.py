@@ -318,8 +318,11 @@ class Tensor:
     def __rmul__(self, b: TensorLike) -> Tensor:
         return Mul.apply(self._ensure_tensor(b), self)
 
-    def all(self) -> Tensor:
-        return All.apply(self, self.dims)
+    def all(self, dim: Optional[int] = None) -> Tensor:
+        if dim is None:
+            return All.apply(self)
+        else:
+            return All.apply(self, Tensor.make([dim], (1,), backend=self.backend))
 
     def is_close(self, b: Tensor) -> Tensor:
         return IsClose.apply(self, b)
@@ -339,18 +342,38 @@ class Tensor:
     def sum(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
             return Sum.apply(self.contiguous().view(self.size), 0)
-        return Sum.apply(self, dim)
+        else:
+            return Sum.apply(self, Tensor.make([dim], (1,), backend=self.backend))
 
     def mean(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
             return self.sum() / self.size
-        return self.sum(dim) / self.shape[dim]
+        else:
+            return self.sum(dim) / self.shape[dim]
 
-    def permute(self, *order: int) -> Tensor:
-        return Permute.apply(self, *order)
+    def permute(self, *order: Optional[int]) -> Tensor:
+        if not order:
+            return self
+        return Permute.apply(
+            self,
+            *[
+                Tensor.make([o if o is not None else -1], (1,), backend=self.backend)
+                for o in order
+            ],
+        )
 
-    def view(self, *shape: int) -> Tensor:
-        return View.apply(self, Tensor.make(shape, (len(shape),)))
+    def view(self, *shape: Optional[int]) -> Tensor:
+        new_shape = []
+        for s in shape:
+            if s is None:
+                new_shape.append(
+                    -1
+                )  # -1 is often used to represent an inferred dimension
+            else:
+                new_shape.append(s)
+        return View.apply(
+            self, Tensor.make(new_shape, (len(new_shape),), backend=self.backend)
+        )
 
     def zero_grad_(self) -> None:
         self.grad = None
