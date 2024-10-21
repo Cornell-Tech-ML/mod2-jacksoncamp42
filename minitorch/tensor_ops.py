@@ -392,7 +392,6 @@ def tensor_reduce(
         out_index = [0] * len(out_shape)
         a_index = [0] * len(a_shape)
 
-        reduce_size = a_shape[reduce_dim]
         if reduce_dim == -1:
             # Reduce over all dimensions
             reduce_size = int(operators.prod(a_shape))
@@ -402,12 +401,11 @@ def tensor_reduce(
                 for j in range(len(out)):
                     out[j] = fn(out[j], a_storage[i * len(out) + j])
         else:
+            reduce_size = a_shape[reduce_dim]
             for i in range(len(out)):
-                # Convert flat index to multidimensional index
                 to_index(i, out_shape, out_index)
-
                 a_index[:] = out_index[:]
-
+                
                 a_index[reduce_dim] = 0
                 a_position = index_to_position(a_index, a_strides)
                 reduce_value = a_storage[a_position]

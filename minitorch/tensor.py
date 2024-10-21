@@ -286,8 +286,9 @@ class Tensor:
     # Functions
     # TODO: Implement for Task 2.3.
     @property
+    @property
     def size(self) -> int:
-        return int(prod(self.shape))
+        return int(operators.prod(self.shape))
 
     @property
     def dims(self) -> int:

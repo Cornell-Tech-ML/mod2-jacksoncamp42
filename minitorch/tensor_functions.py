@@ -168,7 +168,7 @@ class Exp(Function):
 class Sum(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, dim: Optional[Tensor] = None) -> Tensor:
-        """Compute the sum of elements along the specified dimension."""
+        """Compute the natural logarithm of each element in the tensor."""
         if dim is None:
             dim_val = -1  # Use -1 to represent reduction over all dimensions
         else:
@@ -178,7 +178,7 @@ class Sum(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
-        """Compute the gradient for the logical AND reduction operation."""
+        """Compute the natural logarithm of each element in the tensor."""
         original_shape, dim = ctx.saved_values
         if dim == -1:
             return grad_output.expand(original_shape), None
