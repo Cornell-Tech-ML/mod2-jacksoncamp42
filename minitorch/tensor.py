@@ -346,7 +346,12 @@ class Tensor:
                 self.contiguous().view(self.size),
                 Tensor.make([0], (1,), backend=self.backend),
             )
-        return Sum.apply(self, Tensor.make([dim], (1,), backend=self.backend))
+        # When a dimension is provided, reduce along that dimension
+        result = Sum.apply(self, Tensor.make([dim], (1,), backend=self.backend))
+        # If the result is supposed to be a single element, reshape to size 1
+        if result.size == 1:
+            return result.view(1)
+        return result
 
     def mean(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
