@@ -320,8 +320,11 @@ class Tensor:
     def __rmul__(self, b: TensorLike) -> Tensor:
         return Mul.apply(self._ensure_tensor(b), self)
 
-    def all(self) -> Tensor:
-        return All.apply(self, self.dims - 1)
+    def all(self, dim: Optional[int] = None) -> Tensor:
+        if dim is None:
+            return All.apply(self)
+        else:
+            return All.apply(self, Tensor.make([dim], (1,), backend=self.backend))
 
     def is_close(self, b: Tensor) -> Tensor:
         return IsClose.apply(self, b)
@@ -340,9 +343,9 @@ class Tensor:
 
     def sum(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
-            return Sum.apply(self, None)
+            return Sum.apply(self)
         else:
-            return Sum.apply(self, dim)
+            return Sum.apply(self, Tensor.make([dim], (1,), backend=self.backend))
 
     def mean(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:

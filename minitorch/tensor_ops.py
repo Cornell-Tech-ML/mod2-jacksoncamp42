@@ -393,24 +393,32 @@ def tensor_reduce(
         a_index = [0] * len(a_shape)
 
         reduce_size = a_shape[reduce_dim]
+        if reduce_dim == -1:
+            # Reduce over all dimensions
+            reduce_size = int(operators.prod(a_shape))
+            for i in range(len(out)):
+                out[i] = a_storage[i]
+            for i in range(1, reduce_size):
+                for j in range(len(out)):
+                    out[j] = fn(out[j], a_storage[i * len(out) + j])
+        else:
+            for i in range(len(out)):
+                # Convert flat index to multidimensional index
+                to_index(i, out_shape, out_index)
 
-        for i in range(len(out)):
-            # Convert flat index to multidimensional index
-            to_index(i, out_shape, out_index)
+                a_index[:] = out_index[:]
 
-            a_index[:] = out_index[:]
-
-            a_index[reduce_dim] = 0
-            a_position = index_to_position(a_index, a_strides)
-            reduce_value = a_storage[a_position]
-
-            for j in range(1, reduce_size):
-                a_index[reduce_dim] = j
+                a_index[reduce_dim] = 0
                 a_position = index_to_position(a_index, a_strides)
-                reduce_value = fn(reduce_value, a_storage[a_position])
+                reduce_value = a_storage[a_position]
 
-            out_position = index_to_position(out_index, out_strides)
-            out[out_position] = reduce_value
+                for j in range(1, reduce_size):
+                    a_index[reduce_dim] = j
+                    a_position = index_to_position(a_index, a_strides)
+                    reduce_value = fn(reduce_value, a_storage[a_position])
+
+                out_position = index_to_position(out_index, out_strides)
+                out[out_position] = reduce_value
 
     return _reduce
 

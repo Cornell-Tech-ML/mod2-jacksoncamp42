@@ -103,12 +103,25 @@ class Add(Function):
 
 class All(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
-        """Return 1 if all are true"""
-        if dim is not None:
-            return a.f.mul_reduce(a, int(dim.item()))
+    def forward(ctx: Context, a: Tensor, dim: Optional[Tensor] = None) -> Tensor:
+        """Compute the logical AND reduction of a tensor along the specified dimension."""
+        if dim is None:
+            dim_val = -1  # Use -1 to represent reduction over all dimensions
         else:
-            return a.f.mul_reduce(a.contiguous().view(int(operators.prod(a.shape))), 0)
+            dim_val = int(dim.item())
+        ctx.save_for_backward(a.shape, dim_val)
+        return a.f.mul_reduce(a, dim_val)
+
+    @staticmethod
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
+        """Compute the gradient for the logical AND reduction operation."""
+        original_shape, dim = ctx.saved_values
+        if dim == -1:
+            return grad_output.expand(original_shape), None
+        else:
+            grad_shape = list(original_shape)
+            grad_shape[dim] = 1
+            return grad_output.expand(original_shape), None
 
 
 # TODO: Implement for Task 2.3.
@@ -154,13 +167,25 @@ class Exp(Function):
 
 class Sum(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: Optional[int]) -> Tensor:
+    def forward(ctx: Context, a: Tensor, dim: Optional[Tensor] = None) -> Tensor:
         """Compute the sum of elements along the specified dimension."""
-        ctx.save_for_backward(a.shape, dim)
-        if dim is not None:
-            return a.f.add_reduce(a, dim)
+        if dim is None:
+            dim_val = -1  # Use -1 to represent reduction over all dimensions
         else:
-            return a.f.add_reduce(a.contiguous().view(int(operators.prod(a.shape))), 0)
+            dim_val = int(dim.item())
+        ctx.save_for_backward(a.shape, dim_val)
+        return a.f.add_reduce(a, dim_val)
+
+    @staticmethod
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
+        """Compute the gradient for the logical AND reduction operation."""
+        original_shape, dim = ctx.saved_values
+        if dim == -1:
+            return grad_output.expand(original_shape), None
+        else:
+            grad_shape = list(original_shape)
+            grad_shape[dim] = 1
+            return grad_output.expand(original_shape), None
 
 
 class LT(Function):
