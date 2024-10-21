@@ -340,8 +340,9 @@ class Tensor:
 
     def sum(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
-            return Sum.apply(self, self.dims - 1)
-        return Sum.apply(self, dim)
+            return Sum.apply(self, None)
+        else:
+            return Sum.apply(self, dim)
 
     def mean(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:

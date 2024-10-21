@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
@@ -154,10 +154,13 @@ class Exp(Function):
 
 class Sum(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: int) -> Tensor:
-        """Compute the sum of all elements in the tensor along the specified dimension."""
+    def forward(ctx: Context, a: Tensor, dim: Optional[int]) -> Tensor:
+        """Compute the sum of elements along the specified dimension."""
         ctx.save_for_backward(a.shape, dim)
-        return a.f.add_reduce(a, dim)
+        if dim is not None:
+            return a.f.add_reduce(a, dim)
+        else:
+            return a.f.add_reduce(a.contiguous().view(int(operators.prod(a.shape))), 0)
 
 
 class LT(Function):
