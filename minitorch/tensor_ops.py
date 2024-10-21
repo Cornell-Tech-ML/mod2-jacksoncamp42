@@ -389,23 +389,20 @@ def tensor_reduce(
     ) -> None:
         # TODO: Implement for Task 2.3.
 
-        out_index = [0] * len(out_shape)
-        a_index = [0] * len(a_shape)
-
         if reduce_dim == -1:
             # Reduce over all dimensions
-            reduce_size = int(operators.prod(a_shape))
-            for i in range(len(out)):
-                out[i] = a_storage[i]
-            for i in range(1, reduce_size):
-                for j in range(len(out)):
-                    out[j] = fn(out[j], a_storage[i * len(out) + j])
+            out[0] = a_storage[0]
+            for i in range(1, len(a_storage)):
+                out[0] = fn(out[0], a_storage[i])
         else:
+            out_index = [0] * len(out_shape)
+            a_index = [0] * len(a_shape)
             reduce_size = a_shape[reduce_dim]
+
             for i in range(len(out)):
                 to_index(i, out_shape, out_index)
                 a_index[:] = out_index[:]
-                
+
                 a_index[reduce_dim] = 0
                 a_position = index_to_position(a_index, a_strides)
                 reduce_value = a_storage[a_position]
@@ -417,8 +414,6 @@ def tensor_reduce(
 
                 out_position = index_to_position(out_index, out_strides)
                 out[out_position] = reduce_value
-
-    return _reduce
 
 
 SimpleBackend = TensorBackend(SimpleOps)
