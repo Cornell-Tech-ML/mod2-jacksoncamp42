@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 
@@ -143,12 +143,17 @@ class Exp(Function):
 
 class Sum(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
-        # Convert dim to int if it's a Tensor
-        if isinstance(dim, Tensor):
-            dim = int(dim.item())
-        ctx.save_for_backward(a.shape, dim)
-        return a.f.add_reduce(a, dim)
+    def forward(ctx: Context, a: Tensor, dim: Union[Tensor, int]) -> Tensor:
+        # If dim is an integer, wrap it in a tensor
+        if isinstance(dim, int):
+            dim_tensor = minitorch.Tensor.make([dim], (1,), backend=a.backend)
+            dim_val = dim
+        else:
+            dim_tensor = dim
+            dim_val = int(dim.item())
+
+        ctx.save_for_backward(a.shape, dim_val)
+        return a.f.add_reduce(a, dim_val)
 
 
 class LT(Function):

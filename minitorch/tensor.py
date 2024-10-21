@@ -341,9 +341,11 @@ class Tensor:
 
     def sum(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
-            # For reducing all dimensions, view as 1D and sum along dim 0
-            return Sum.apply(self.contiguous().view(self.size), 0)
-        return Sum.apply(self, dim)
+            return Sum.apply(
+                self.contiguous().view(self.size),
+                Tensor.make([0], (1,), backend=self.backend),
+            )
+        return Sum.apply(self, Tensor.make([dim], (1,), backend=self.backend))
 
     def mean(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
