@@ -262,7 +262,13 @@ def tensor_map(
         in_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        out_index = [0] * len(out_shape)
+        for i in range(len(out)):
+            in_index = [0] * len(in_shape)
+            broadcast_index(out_index, out_shape, in_shape, in_index)
+            data = in_storage[index_to_position(in_index, in_strides)]
+            out[index_to_position(out_index, out_strides)] = fn(data)
+            to_index(i + 1, out_shape, out_index)
 
     return _map
 
@@ -307,7 +313,16 @@ def tensor_zip(
         b_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        out_index = [0] * len(out_shape)
+        for i in range(len(out)):
+            a_index = [0] * len(a_shape)
+            b_index = [0] * len(b_shape)
+            broadcast_index(out_index, out_shape, a_shape, a_index)
+            broadcast_index(out_index, out_shape, b_shape, b_index)
+            a_data = a_storage[index_to_position(a_index, a_strides)]
+            b_data = b_storage[index_to_position(b_index, b_strides)]
+            out[index_to_position(out_index, out_strides)] = fn(a_data, b_data)
+            to_index(i + 1, out_shape, out_index)
 
     return _zip
 
@@ -338,7 +353,18 @@ def tensor_reduce(
         reduce_dim: int,
     ) -> None:
         # TODO: Implement for Task 2.3.
-        raise NotImplementedError("Need to implement for Task 2.3")
+        out_index = [0] * len(out_shape)
+        reduce_size = a_shape[reduce_dim]
+        for i in range(len(out)):
+            a_index = [0] * len(a_shape)
+            broadcast_index(out_index, out_shape, a_shape, a_index)
+            reduce_value = out[index_to_position(out_index, out_strides)]
+            for j in range(reduce_size):
+                a_index[reduce_dim] = j
+                pos = index_to_position(a_index, a_strides)
+                reduce_value = fn(reduce_value, a_storage[pos])
+            out[index_to_position(out_index, out_strides)] = reduce_value
+            to_index(i + 1, out_shape, out_index)
 
     return _reduce
 
