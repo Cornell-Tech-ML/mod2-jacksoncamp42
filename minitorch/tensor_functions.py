@@ -143,7 +143,10 @@ class Exp(Function):
 
 class Sum(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: int) -> Tensor:
+    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
+        # Convert dim to int if it's a Tensor
+        if isinstance(dim, Tensor):
+            dim = int(dim.item())
         ctx.save_for_backward(a.shape, dim)
         return a.f.add_reduce(a, dim)
 
