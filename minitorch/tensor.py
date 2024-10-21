@@ -320,7 +320,8 @@ class Tensor:
 
     def all(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
-            return All.apply(self, None)
+            # Default to reducing along the first dimension (e.g., 0)
+            return All.apply(self, Tensor.make([0], (1,), backend=self.backend))
         else:
             return All.apply(self, Tensor.make([dim], (1,), backend=self.backend))
 
