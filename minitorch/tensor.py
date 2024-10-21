@@ -285,6 +285,14 @@ class Tensor:
 
     # Functions
     # TODO: Implement for Task 2.3.
+    @property
+    def size(self) -> int:
+        return int(prod(self.shape))
+
+    @property
+    def dims(self) -> int:
+        return len(self.shape)
+
     def __add__(self, b: TensorLike) -> Tensor:
         return Add.apply(self, self._ensure_tensor(b))
 
@@ -341,7 +349,7 @@ class Tensor:
         return self.sum(dim) / self.shape[dim]
 
     def permute(self, *order: int) -> Tensor:
-        return Permute.apply(self, tensor(list(order)))
+        return Permute.apply(self, *order)
 
     def view(self, *shape: int) -> Tensor:
         return View.apply(self, tensor(list(shape)))
