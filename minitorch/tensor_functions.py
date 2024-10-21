@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -66,25 +66,21 @@ class Function:
 class Neg(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
-        """Compute the negation of the input tensor."""
         return t1.f.neg_map(t1)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        """Compute the gradient for the negation operation."""
         return grad_output.f.neg_map(grad_output)
 
 
 class Inv(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
-        """Compute the inverse of the input tensor."""
         ctx.save_for_backward(t1)
         return t1.f.inv_map(t1)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        """Compute the gradient for the inverse operation."""
         (t1,) = ctx.saved_values
         return grad_output.f.inv_back_zip(t1, grad_output)
 
@@ -92,137 +88,29 @@ class Inv(Function):
 class Add(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor, t2: Tensor) -> Tensor:
-        """Compute the element-wise addition of two tensors."""
         return t1.f.add_zip(t1, t2)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        """Compute the gradient for the addition operation."""
         return grad_output, grad_output
 
 
 class All(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: Optional[Tensor] = None) -> Tensor:
-        """Compute the logical AND reduction of a tensor along the specified dimension."""
-        if dim is None:
-            dim_val = -1  # Use -1 to represent reduction over all dimensions
+    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
+        """Return 1 if all are true"""
+        if dim is not None:
+            return a.f.mul_reduce(a, int(dim.item()))
         else:
-            dim_val = int(dim.item())
-        ctx.save_for_backward(a.shape, dim_val)
-        return a.f.mul_reduce(a, dim_val)
-
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
-        """Compute the gradient for the logical AND reduction operation."""
-        original_shape, dim = ctx.saved_values
-        if dim == -1:
-            return grad_output.expand(original_shape), None
-        else:
-            grad_shape = list(original_shape)
-            grad_shape[dim] = 1
-            return grad_output.expand(original_shape), None
+            return a.f.mul_reduce(a.contiguous().view(int(operators.prod(a.shape))), 0)
 
 
 # TODO: Implement for Task 2.3.
-class Mul(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
-        """Compute the element-wise multiplication of two tensors."""
-        ctx.save_for_backward(a, b)
-        return a.f.mul_zip(a, b)
-
-
-class Sigmoid(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor) -> Tensor:
-        """Compute the sigmoid function for each element in the tensor."""
-        ctx.save_for_backward(a)
-        return a.f.sigmoid_map(a)
-
-
-class ReLU(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor) -> Tensor:
-        """Apply the Rectified Linear Unit (ReLU) function to each element in the tensor."""
-        ctx.save_for_backward(a)
-        return a.f.relu_map(a)
-
-
-class Log(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor) -> Tensor:
-        """Compute the natural logarithm of each element in the tensor."""
-        ctx.save_for_backward(a)
-        return a.f.log_map(a)
-
-
-class Exp(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor) -> Tensor:
-        """Compute the exponential of each element in the tensor."""
-        ctx.save_for_backward(a)
-        return a.f.exp_map(a)
-
-
-class Sum(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: Optional[Tensor] = None) -> Tensor:
-        """Compute the natural logarithm of each element in the tensor."""
-        if dim is None:
-            dim_val = -1  # Use -1 to represent reduction over all dimensions
-        else:
-            dim_val = int(dim.item())
-        ctx.save_for_backward(a.shape, dim_val)
-        return a.f.add_reduce(a, dim_val)
-
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
-        """Compute the natural logarithm of each element in the tensor."""
-        original_shape, dim = ctx.saved_values
-        if dim == -1:
-            return grad_output.expand(original_shape), None
-        else:
-            grad_shape = list(original_shape)
-            grad_shape[dim] = 1
-            return grad_output.expand(original_shape), None
-
-
-class LT(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
-        """Compute the element-wise 'less than' comparison between two tensors."""
-        ctx.save_for_backward(a, b)
-        return a.f.lt_zip(a, b)
-
-
-class EQ(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
-        """Compute the element-wise equality comparison between two tensors."""
-        ctx.save_for_backward(a, b)
-        return a.f.eq_zip(a, b)
-
-
-class IsClose(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
-        """Check if elements in two tensors are close to each other within a tolerance."""
-        return a.f.is_close_zip(a, b)
-
-
-class Permute(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor, order: Tensor) -> Tensor:
-        """Permute the dimensions of the input tensor according to the given order."""
-        ctx.save_for_backward(order)
-        return a._new(a._tensor.permute(*[int(i) for i in order]))
 
 
 class View(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, shape: Tensor) -> Tensor:
-        """Reshape the input tensor to the specified shape."""
         ctx.save_for_backward(a.shape)
         assert a._tensor.is_contiguous(), "Must be contiguous to view"
         shape2 = [int(shape[i]) for i in range(shape.size)]
@@ -385,19 +273,6 @@ def tensor(
 def grad_central_difference(
     f: Any, *vals: Tensor, arg: int = 0, epsilon: float = 1e-6, ind: UserIndex
 ) -> float:
-    """Compute the central difference approximation of the gradient.
-
-    Args:
-        f (Any): Function to differentiate.
-        *vals (Tensor): Input tensors.
-        arg (int): Index of the argument to differentiate with respect to.
-        epsilon (float): Small value for finite difference calculation.
-        ind (UserIndex): Index within the tensor to compute the gradient.
-
-    Returns:
-        float: Approximated gradient value.
-
-    """
     x = vals[arg]
     up = zeros(x.shape)
     up[ind] = epsilon
