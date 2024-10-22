@@ -132,9 +132,13 @@ class Sigmoid(Function):
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
         """Backward pass for sigmoid.
-        Returns grad_output * sigmoid(x) * (1 - sigmoid(x))"""
+        Returns grad_output * sigmoid(x) * (1 - sigmoid(x))
+        """
         sigmoid_x = ctx.saved_values[0]
-        return grad_output * sigmoid_x * (1.0 - sigmoid_x)
+        # Create tensor for 1.0
+        ones = sigmoid_x.zeros(sigmoid_x.shape)
+        ones._tensor._storage[:] = [1.0] * len(ones._tensor._storage)
+        return grad_output * sigmoid_x * (ones - sigmoid_x)
 
 
 class ReLU(Function):
@@ -146,9 +150,14 @@ class ReLU(Function):
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
         """Backward pass for ReLU.
-        Returns grad_output if input > 0, else 0"""
+        Returns grad_output if input > 0, else 0
+        """
         input_tensor = ctx.saved_values[0]
-        return grad_output * (input_tensor._tensor.get_data() > 0)
+        # Compare values to 0 directly from storage
+        out = input_tensor.zeros(input_tensor.shape)
+        for i, val in enumerate(input_tensor._tensor._storage):
+            out._tensor._storage[i] = 1.0 if val > 0.0 else 0.0
+        return grad_output * out
 
 
 class Log(Function):
@@ -258,7 +267,7 @@ class Permute(Function):
             inv_order[p] = i
         # Return permuted grad_output and zeros for each order argument
         grad_input = grad_output.permute(*inv_order)
-        return (grad_input,) + (0.0,) * len(order)
+        return (grad_input,) + tuple(0.0 for _ in order)
 
 
 class View(Function):
