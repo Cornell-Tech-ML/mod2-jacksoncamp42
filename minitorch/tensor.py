@@ -342,22 +342,14 @@ class Tensor:
 
     def sum(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
-            # Sum all elements and ensure the result is a single scalar
+            # Sum all elements into a single scalar value
             return Sum.apply(
                 self.contiguous().view(self.size),
                 Tensor.make([0], (1,), backend=self.backend),
-            ).view(1)
+            )
         else:
-            # Sum along the provided dimension
-            result = Sum.apply(self, Tensor.make([dim], (1,), backend=self.backend))
-
-            # Check if we need to reduce to a scalar
-            if result.shape == (1,):
-                return result.view(
-                    1
-                )  # Ensure it's reshaped to a single scalar if needed
-
-            return result
+            # Sum along the specified dimension
+            return Sum.apply(self, Tensor.make([dim], (1,), backend=self.backend))
 
     def mean(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
