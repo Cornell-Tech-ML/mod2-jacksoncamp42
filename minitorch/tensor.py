@@ -320,10 +320,12 @@ class Tensor:
 
     def all(self, dim: Optional[int] = None) -> Tensor:
         if dim is None:
-            # Default to reducing along the first dimension (e.g., 0)
-            return All.apply(self, Tensor.make([0], (1,), backend=self.backend))
-        else:
-            return All.apply(self, Tensor.make([dim], (1,), backend=self.backend))
+            # When no dimension is specified, we want to check if all elements are True
+            return All.apply(
+                self.contiguous().view(self.size),
+                Tensor.make([0], (1,), backend=self.backend),
+            )
+        return All.apply(self, Tensor.make([dim], (1,), backend=self.backend))
 
     def is_close(self, b: Tensor) -> Tensor:
         return IsClose.apply(self, b)
