@@ -106,6 +106,8 @@ class All(Function):
 
 
 # TODO: Implement for Task 2.3.
+
+
 class Mul(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
@@ -113,7 +115,7 @@ class Mul(Function):
         return a.f.mul_zip(a, b)
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         a, b = ctx.saved_values
         return grad_output * b, grad_output * a
 
@@ -140,7 +142,7 @@ class ReLU(Function):
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
         (a,) = ctx.saved_values
-        return grad_output * (a._tensor._storage > 0.0)
+        return grad_output * (a > 0.0)
 
 
 class Log(Function):
@@ -170,37 +172,23 @@ class Exp(Function):
 class Sum(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, dim: Union[Tensor, int]) -> Tensor:
-        # If dim is an integer, wrap it in a tensor
         if isinstance(dim, int):
-            dim_tensor = minitorch.Tensor.make([dim], (1,), backend=a.backend)
             dim_val = dim
         else:
-            dim_tensor = dim
             dim_val = int(dim.item())
 
         ctx.save_for_backward(a.shape, dim_val)
         return a.f.add_reduce(a, dim_val)
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         shape, dim = ctx.saved_values
-        # Need to create a tensor that has 1's in the reduced dimension
         if dim is None:
-            # If dim is None, we reduced all dimensions, so we broadcast back to original shape
-            out = grad_output.zeros(shape)
-            out._tensor._storage[:] = grad_output[0]
-            return out, None
+            grad_a = grad_output.expand(shape)
         else:
-            # Create output shape for partial reduction
-            out_shape = list(shape)
-            out_shape[dim] = 1
-            # Create output tensor
-            out = grad_output.zeros(tuple(out_shape))
-            out._tensor._storage[:] = grad_output._tensor._storage
-            # Broadcast back to original shape
-            ret = out.zeros(shape)
-            ret._tensor._storage[:] = out._tensor._storage[0]
-            return ret, None
+            grad_a = grad_output.unsqueeze(dim).expand(shape)
+        grad_dim = zeros((1,), backend=grad_output.backend)
+        return grad_a, grad_dim
 
 
 class LT(Function):
@@ -209,7 +197,7 @@ class LT(Function):
         return a.f.lt_zip(a, b)
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         zero_tensor = zeros(grad_output.shape, backend=grad_output.backend)
         return zero_tensor, zero_tensor
 
@@ -220,7 +208,7 @@ class EQ(Function):
         return a.f.eq_zip(a, b)
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         zero_tensor = zeros(grad_output.shape, backend=grad_output.backend)
         return zero_tensor, zero_tensor
 
@@ -231,7 +219,7 @@ class IsClose(Function):
         return a.f.is_close_zip(a, b)
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         zero_tensor = zeros(grad_output.shape, backend=grad_output.backend)
         return zero_tensor, zero_tensor
 
@@ -244,12 +232,14 @@ class Permute(Function):
         return a._new(a._tensor.permute(*order_ints))
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tensor:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
         order = ctx.saved_values[0]
         inv_order = [0] * len(order)
         for i, p in enumerate(order):
             inv_order[p] = i
-        return grad_output._new(grad_output._tensor.permute(*inv_order))
+        grad_a = grad_output._new(grad_output._tensor.permute(*inv_order))
+        grad_orders = tuple(zeros((1,), backend=grad_output.backend) for _ in order)
+        return (grad_a,) + grad_orders
 
 
 class View(Function):
@@ -263,15 +253,11 @@ class View(Function):
         )
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
-        """Matrix Multiply backward (module 3)"""
-        (original,) = ctx.saved_values
-        return (
-            minitorch.Tensor.make(
-                grad_output._tensor._storage, original, backend=grad_output.backend
-            ),
-            0.0,
-        )
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        (original_shape,) = ctx.saved_values
+        grad_a = grad_output.view(original_shape)
+        grad_shape = zeros((len(original_shape),), backend=grad_output.backend)
+        return grad_a, grad_shape
 
 
 class Copy(Function):
@@ -289,24 +275,21 @@ class Copy(Function):
 class MatMul(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor, t2: Tensor) -> Tensor:
-        """Matrix Multiply Forward (module 3)"""
         ctx.save_for_backward(t1, t2)
         return t1.f.matrix_multiply(t1, t2)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        """Matrix Multiply backward (module 3)"""
         t1, t2 = ctx.saved_values
 
         def transpose(a: Tensor) -> Tensor:
             order = list(range(a.dims))
             order[-2], order[-1] = order[-1], order[-2]
-            return a._new(a._tensor.permute(*order))
+            return a.permute(*order)
 
-        return (
-            grad_output.f.matrix_multiply(grad_output, transpose(t2)),
-            grad_output.f.matrix_multiply(transpose(t1), grad_output),
-        )
+        grad_t1 = grad_output @ transpose(t2)
+        grad_t2 = transpose(t1) @ grad_output
+        return grad_t1, grad_t2
 
 
 # Helpers for Constructing tensors
