@@ -192,15 +192,22 @@ class Sum(Function):
         return a.f.add_reduce(a, dim_val)
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
         shape, dim = ctx.saved_values
+        # Convert shape tuple into a proper tensor with the right size
         if dim is None:
-            grad_a = grad_output.expand(shape)
+            # For full reduction
+            return (grad_output.zeros(shape) + grad_output, None)
         else:
-            grad_a = unsqueeze(grad_output, dim).expand(shape)
-        # Gradient w.r.t. 'dim' is zero
-        grad_dim = zeros((1,), backend=grad_output.backend)
-        return grad_a, grad_dim
+            # Add extra dimension in the reduced axis
+            out_shape = list(shape)
+            out_shape[dim] = 1
+            grad = grad_output.zeros(out_shape)
+            grad._tensor._storage[:] = grad_output._tensor._storage[:]
+            # Expand back to original shape
+            grad_expanded = grad.zeros(shape)
+            grad_expanded._tensor._storage[:] = grad_output[0]
+            return grad_expanded, None
 
 
 class LT(Function):
