@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Union
 import numpy as np
 
 import minitorch
+from minitorch.tensor import Tensor
 
 from . import operators
 from .autodiff import Context
