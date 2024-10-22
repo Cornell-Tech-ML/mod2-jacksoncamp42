@@ -184,16 +184,23 @@ class Sum(Function):
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
         shape, dim = ctx.saved_values
-        # Create the output gradient tensor with same shape as input
-        out = grad_output
-        # If we need to expand dims to match original shape
-        if dim is not None:
-            # Create output shape with correct dimensions
-            new_shape = list(shape)
-            new_shape[dim] = 1
-            # Create new tensor with expanded dims
-            out = grad_output._new(grad_output._tensor).expand(shape)
-        return out, None
+        # Need to create a tensor that has 1's in the reduced dimension
+        if dim is None:
+            # If dim is None, we reduced all dimensions, so we broadcast back to original shape
+            out = grad_output.zeros(shape)
+            out._tensor._storage[:] = grad_output[0]
+            return out, None
+        else:
+            # Create output shape for partial reduction
+            out_shape = list(shape)
+            out_shape[dim] = 1
+            # Create output tensor
+            out = grad_output.zeros(tuple(out_shape))
+            out._tensor._storage[:] = grad_output._tensor._storage
+            # Broadcast back to original shape
+            ret = out.zeros(shape)
+            ret._tensor._storage[:] = out._tensor._storage[0]
+            return ret, None
 
 
 class LT(Function):
@@ -229,8 +236,10 @@ class IsClose(Function):
 class Permute(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, *order: int) -> Tensor:
-        ctx.save_for_backward(order)
-        return a._new(a._tensor.permute(*order))
+        # Convert any Tensors to ints
+        order_ints = tuple(int(o.item()) if isinstance(o, Tensor) else o for o in order)
+        ctx.save_for_backward(order_ints)
+        return a._new(a._tensor.permute(*order_ints))
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
