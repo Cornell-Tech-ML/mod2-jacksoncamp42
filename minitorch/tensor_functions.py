@@ -253,7 +253,8 @@ class IsClose(Function):
 class Permute(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, *order: int) -> Tensor:
-        order_ints = tuple(int(o.item()) if isinstance(o, Tensor) else o for o in order)
+        # Instead of using isinstance, check for _tensor attribute
+        order_ints = tuple(int(o.item()) if hasattr(o, "_tensor") else o for o in order)
         ctx.save_for_backward(order_ints)
         return a._new(a._tensor.permute(*order_ints))
 
