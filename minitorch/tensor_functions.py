@@ -181,11 +181,19 @@ class Sum(Function):
         ctx.save_for_backward(a.shape, dim_val)
         return a.f.add_reduce(a, dim_val)
 
+    @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
         shape, dim = ctx.saved_values
-        # Make a tensor of the right shape filled with the gradient
-        grad = grad_output.expand(shape)
-        return grad, 0.0
+        # Create the output gradient tensor with same shape as input
+        out = grad_output
+        # If we need to expand dims to match original shape
+        if dim is not None:
+            # Create output shape with correct dimensions
+            new_shape = list(shape)
+            new_shape[dim] = 1
+            # Create new tensor with expanded dims
+            out = grad_output._new(grad_output._tensor).expand(shape)
+        return out, None
 
 
 class LT(Function):
