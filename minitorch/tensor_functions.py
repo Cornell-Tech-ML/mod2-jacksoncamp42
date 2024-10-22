@@ -124,31 +124,27 @@ class Mul(Function):
 
 class Sigmoid(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor) -> Tensor:
-        result = a.f.sigmoid_map(a)
-        ctx.save_for_backward(result)
-        return result
+    def forward(ctx: Context, t1: Tensor) -> Tensor:
+        sigmoid_t1 = t1.f.sigmoid_map(t1)
+        ctx.save_for_backward(sigmoid_t1)
+        return sigmoid_t1
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        (s,) = ctx.saved_values
-        # Gradient is grad_output * s * (1 - s)
-        return grad_output * s * (1 - s)
+        (sigmoid_t1,) = ctx.saved_values
+        return grad_output * (sigmoid_t1 * (1 - sigmoid_t1))
 
 
 class ReLU(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor) -> Tensor:
-        ctx.save_for_backward(a)
-        return a.f.relu_map(a)
+    def forward(ctx: Context, t1: Tensor) -> Tensor:
+        ctx.save_for_backward(t1)
+        return t1.f.relu_map(t1)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        (a,) = ctx.saved_values
-        # Gradient is grad_output where a > 0, else 0
-        grad = grad_output.copy()
-        grad[a <= 0] = 0
-        return grad
+        (t1,) = ctx.saved_values
+        return grad_output * (t1._tensor > 0.0)
 
 
 class Log(Function):
@@ -165,14 +161,15 @@ class Log(Function):
 
 class Exp(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor) -> Tensor:
-        ctx.save_for_backward(a)
-        return a.f.exp_map(a)
+    def forward(ctx: Context, t1: Tensor) -> Tensor:
+        exp_t1 = t1.f.exp_map(t1)
+        ctx.save_for_backward(exp_t1)
+        return exp_t1
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        (a,) = ctx.saved_values
-        return grad_output * a.f.exp_map(a)
+        (exp_t1,) = ctx.saved_values
+        return grad_output * exp_t1
 
 
 def unsqueeze(tensor: Tensor, dim: int) -> Tensor:
@@ -310,6 +307,13 @@ class MatMul(Function):
         grad_t1 = grad_output @ transpose(t2)
         grad_t2 = transpose(t1) @ grad_output
         return grad_t1, grad_t2
+
+
+def ensure_tuple(shape: Union[List, Tuple]) -> Tuple:
+    """Convert shape to tuple if it isn't already"""
+    if isinstance(shape, tuple):
+        return shape
+    return tuple(shape)
 
 
 # Helpers for Constructing tensors
