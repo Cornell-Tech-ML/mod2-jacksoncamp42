@@ -164,7 +164,7 @@ class Exp(Function):
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
         (a,) = ctx.saved_values
-        return grad_output * ctx.saved_values[0].f.exp_map(a)
+        return grad_output * a.f.exp_map(a)
 
 
 class Sum(Function):
@@ -210,7 +210,8 @@ class LT(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
-        return 0.0 * grad_output, 0.0 * grad_output
+        zero_tensor = zeros(grad_output.shape, backend=grad_output.backend)
+        return zero_tensor, zero_tensor
 
 
 class EQ(Function):
@@ -220,7 +221,8 @@ class EQ(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
-        return 0.0 * grad_output, 0.0 * grad_output
+        zero_tensor = zeros(grad_output.shape, backend=grad_output.backend)
+        return zero_tensor, zero_tensor
 
 
 class IsClose(Function):
@@ -230,13 +232,13 @@ class IsClose(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
-        return 0.0 * grad_output, 0.0 * grad_output
+        zero_tensor = zeros(grad_output.shape, backend=grad_output.backend)
+        return zero_tensor, zero_tensor
 
 
 class Permute(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, *order: int) -> Tensor:
-        # Convert any Tensors to ints
         order_ints = tuple(int(o.item()) if isinstance(o, Tensor) else o for o in order)
         ctx.save_for_backward(order_ints)
         return a._new(a._tensor.permute(*order_ints))
@@ -244,10 +246,9 @@ class Permute(Function):
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
         order = ctx.saved_values[0]
-        # Create inverse permutation
         inv_order = [0] * len(order)
         for i, p in enumerate(order):
-            inv_order[int(p)] = i
+            inv_order[p] = i
         return grad_output._new(grad_output._tensor.permute(*inv_order))
 
 
