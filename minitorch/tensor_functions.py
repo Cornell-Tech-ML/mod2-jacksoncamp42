@@ -117,19 +117,22 @@ class Mul(Function):
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         a, b = ctx.saved_values
+        # Gradient w.r.t. a is grad_output * b
+        # Gradient w.r.t. b is grad_output * a
         return grad_output * b, grad_output * a
 
 
 class Sigmoid(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor) -> Tensor:
-        ctx.save_for_backward(a)
-        return a.f.sigmoid_map(a)
+        result = a.f.sigmoid_map(a)
+        ctx.save_for_backward(result)
+        return result
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        (a,) = ctx.saved_values
-        s = a.f.sigmoid_map(a)
+        (s,) = ctx.saved_values
+        # Gradient is grad_output * s * (1 - s)
         return grad_output * s * (1 - s)
 
 
@@ -142,7 +145,10 @@ class ReLU(Function):
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
         (a,) = ctx.saved_values
-        return grad_output * (a > 0.0)
+        # Gradient is grad_output where a > 0, else 0
+        grad = grad_output.copy()
+        grad[a <= 0] = 0
+        return grad
 
 
 class Log(Function):
@@ -169,6 +175,12 @@ class Exp(Function):
         return grad_output * a.f.exp_map(a)
 
 
+def unsqueeze(tensor: Tensor, dim: int) -> Tensor:
+    shape = list(tensor.shape)
+    shape.insert(dim, 1)
+    return tensor.view(*shape)
+
+
 class Sum(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, dim: Union[Tensor, int]) -> Tensor:
@@ -176,7 +188,6 @@ class Sum(Function):
             dim_val = dim
         else:
             dim_val = int(dim.item())
-
         ctx.save_for_backward(a.shape, dim_val)
         return a.f.add_reduce(a, dim_val)
 
@@ -186,7 +197,8 @@ class Sum(Function):
         if dim is None:
             grad_a = grad_output.expand(shape)
         else:
-            grad_a = grad_output.unsqueeze(dim).expand(shape)
+            grad_a = unsqueeze(grad_output, dim).expand(shape)
+        # Gradient w.r.t. 'dim' is zero
         grad_dim = zeros((1,), backend=grad_output.backend)
         return grad_a, grad_dim
 
@@ -237,7 +249,8 @@ class Permute(Function):
         inv_order = [0] * len(order)
         for i, p in enumerate(order):
             inv_order[p] = i
-        grad_a = grad_output._new(grad_output._tensor.permute(*inv_order))
+        grad_a = grad_output.permute(*inv_order)
+        # Gradients w.r.t. 'order' are zero tensors
         grad_orders = tuple(zeros((1,), backend=grad_output.backend) for _ in order)
         return (grad_a,) + grad_orders
 
