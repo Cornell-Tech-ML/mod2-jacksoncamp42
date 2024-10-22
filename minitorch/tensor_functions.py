@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Union
 import numpy as np
 
 import minitorch
-from minitorch.tensor import Tensor
 
 from . import operators
 from .autodiff import Context
@@ -115,13 +114,6 @@ class Mul(Function):
         ctx.save_for_backward(a, b)
         return a.f.mul_zip(a, b)
 
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        a, b = ctx.saved_values
-        # Gradient w.r.t. a is grad_output * b
-        # Gradient w.r.t. b is grad_output * a
-        return grad_output * b, grad_output * a
-
 
 class Sigmoid(Function):
     @staticmethod
@@ -130,22 +122,12 @@ class Sigmoid(Function):
         ctx.save_for_backward(sigmoid_t1)
         return sigmoid_t1
 
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        (sigmoid_t1,) = ctx.saved_values
-        return grad_output * (sigmoid_t1 * (1 - sigmoid_t1))
-
 
 class ReLU(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
         ctx.save_for_backward(t1)
         return t1.f.relu_map(t1)
-
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        (t1,) = ctx.saved_values
-        return grad_output * (t1._tensor > 0.0)
 
 
 class Log(Function):
@@ -154,11 +136,6 @@ class Log(Function):
         ctx.save_for_backward(a)
         return a.f.log_map(a)
 
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        (a,) = ctx.saved_values
-        return grad_output / a
-
 
 class Exp(Function):
     @staticmethod
@@ -166,17 +143,6 @@ class Exp(Function):
         exp_t1 = t1.f.exp_map(t1)
         ctx.save_for_backward(exp_t1)
         return exp_t1
-
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        (exp_t1,) = ctx.saved_values
-        return grad_output * exp_t1
-
-
-def unsqueeze(tensor: Tensor, dim: int) -> Tensor:
-    shape = list(tensor.shape)
-    shape.insert(dim, 1)
-    return tensor.view(*shape)
 
 
 class Sum(Function):
@@ -189,34 +155,11 @@ class Sum(Function):
         ctx.save_for_backward(a.shape, dim_val)
         return a.f.add_reduce(a, dim_val)
 
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
-        shape, dim = ctx.saved_values
-        # Convert shape tuple into a proper tensor with the right size
-        if dim is None:
-            # For full reduction
-            return (grad_output.zeros(shape) + grad_output, None)
-        else:
-            # Add extra dimension in the reduced axis
-            out_shape = list(shape)
-            out_shape[dim] = 1
-            grad = grad_output.zeros(out_shape)
-            grad._tensor._storage[:] = grad_output._tensor._storage[:]
-            # Expand back to original shape
-            grad_expanded = grad.zeros(shape)
-            grad_expanded._tensor._storage[:] = grad_output[0]
-            return grad_expanded, None
-
 
 class LT(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
         return a.f.lt_zip(a, b)
-
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        zero_tensor = zeros(grad_output.shape, backend=grad_output.backend)
-        return zero_tensor, zero_tensor
 
 
 class EQ(Function):
@@ -224,21 +167,11 @@ class EQ(Function):
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
         return a.f.eq_zip(a, b)
 
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        zero_tensor = zeros(grad_output.shape, backend=grad_output.backend)
-        return zero_tensor, zero_tensor
-
 
 class IsClose(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
         return a.f.is_close_zip(a, b)
-
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        zero_tensor = zeros(grad_output.shape, backend=grad_output.backend)
-        return zero_tensor, zero_tensor
 
 
 class Permute(Function):
@@ -247,17 +180,6 @@ class Permute(Function):
         order_ints = tuple(int(o.item()) if isinstance(o, Tensor) else o for o in order)
         ctx.save_for_backward(order_ints)
         return a._new(a._tensor.permute(*order_ints))
-
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, ...]:
-        order = ctx.saved_values[0]
-        inv_order = [0] * len(order)
-        for i, p in enumerate(order):
-            inv_order[p] = i
-        grad_a = grad_output.permute(*inv_order)
-        # Gradients w.r.t. 'order' are zero tensors
-        grad_orders = tuple(zeros((1,), backend=grad_output.backend) for _ in order)
-        return (grad_a,) + grad_orders
 
 
 class View(Function):
@@ -271,11 +193,15 @@ class View(Function):
         )
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        (original_shape,) = ctx.saved_values
-        grad_a = grad_output.view(original_shape)
-        grad_shape = zeros((len(original_shape),), backend=grad_output.backend)
-        return grad_a, grad_shape
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
+        """Matrix Multiply backward (module 3)"""
+        (original,) = ctx.saved_values
+        return (
+            minitorch.Tensor.make(
+                grad_output._tensor._storage, original, backend=grad_output.backend
+            ),
+            0.0,
+        )
 
 
 class Copy(Function):
@@ -293,28 +219,24 @@ class Copy(Function):
 class MatMul(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor, t2: Tensor) -> Tensor:
+        """Matrix Multiply Forward (module 3)"""
         ctx.save_for_backward(t1, t2)
         return t1.f.matrix_multiply(t1, t2)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Matrix Multiply backward (module 3)"""
         t1, t2 = ctx.saved_values
 
         def transpose(a: Tensor) -> Tensor:
             order = list(range(a.dims))
             order[-2], order[-1] = order[-1], order[-2]
-            return a.permute(*order)
+            return a._new(a._tensor.permute(*order))
 
-        grad_t1 = grad_output @ transpose(t2)
-        grad_t2 = transpose(t1) @ grad_output
-        return grad_t1, grad_t2
-
-
-def ensure_tuple(shape: Union[List, Tuple]) -> Tuple:
-    """Convert shape to tuple if it isn't already"""
-    if isinstance(shape, tuple):
-        return shape
-    return tuple(shape)
+        return (
+            grad_output.f.matrix_multiply(grad_output, transpose(t2)),
+            grad_output.f.matrix_multiply(transpose(t1), grad_output),
+        )
 
 
 # Helpers for Constructing tensors
