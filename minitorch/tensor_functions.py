@@ -302,22 +302,20 @@ class View(Function):
         """Returns the tensor with a new shape."""
         ctx.save_for_backward(a.shape)
         assert a._tensor.is_contiguous(), "Must be contiguous to view"
-        # Fix for item() error - convert Tensor to int directly
-        shape2 = [int(shape[i].detach()._tensor._storage[0]) for i in range(shape.size)]
+        shape2 = [int(shape[i]) for i in range(shape.size)]
         return minitorch.Tensor.make(
             a._tensor._storage, tuple(shape2), backend=a.backend
         )
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
         """Returns the gradient for the reshaped tensor."""
         (original,) = ctx.saved_values
-        # Fix return type to be Tuple[Tensor, Tensor]
         return (
             minitorch.Tensor.make(
                 grad_output._tensor._storage, original, backend=grad_output.backend
             ),
-            grad_output.zeros(grad_output.shape),  # Return Tensor instead of float
+            0.0,
         )
 
 
@@ -465,6 +463,7 @@ def grad_central_difference(
     f: Any, *vals: Tensor, arg: int = 0, epsilon: float = 1e-6, ind: UserIndex
 ) -> float:
     """Computes the central difference approximation of the gradient for a given function."""
+
     x = vals[arg]
     up = zeros(x.shape)
     up[ind] = epsilon
