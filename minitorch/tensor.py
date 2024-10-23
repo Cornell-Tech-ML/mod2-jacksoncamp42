@@ -347,6 +347,7 @@ class Tensor:
 
     def relu(self) -> Tensor:
         """Applies the ReLU function to the tensor."""
+        return ReLU.apply(self)
 
     def log(self) -> Tensor:
         """Applies the logarithm function to the tensor."""
