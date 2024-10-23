@@ -41,7 +41,7 @@ class TensorOps:
     @staticmethod
     def reduce(
         fn: Callable[[float, float], float], start: float = 0.0
-    ) -> Callable[["Tensor", int], "Tensor"]:
+    ) -> Callable[["Tensor", int], Tensor]:
         """Higher-order tensor reduce function. ::
 
           fn_reduce = reduce(fn)
@@ -61,7 +61,7 @@ class TensorOps:
 
         Returns:
             A function that takes a tensor and a dimension to reduce over
-            
+
         """
         ...
 
