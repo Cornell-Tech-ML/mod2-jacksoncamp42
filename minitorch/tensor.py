@@ -194,6 +194,8 @@ class Tensor:
         # END CODE CHANGE (2021)
 
     def zeros(self, shape: Optional[UserShape] = None) -> Tensor:
+        """Returns a tensor filled with zeros of the specified shape."""
+
         def zero(shape: UserShape) -> Tensor:
             return Tensor.make(
                 [0.0] * int(operators.prod(shape)), shape, backend=self.backend
@@ -239,14 +241,17 @@ class Tensor:
         return self.history is not None and self.history.last_fn is None
 
     def is_constant(self) -> bool:
+        """Checks if the tensor is a constant (no history)."""
         return self.history is None
 
     @property
     def parents(self) -> Iterable[Variable]:
+        """Returns the input tensors that created this tensor."""
         assert self.history is not None
         return self.history.inputs
 
     def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]:
+        """Implements the chain rule for gradient computation."""
         h = self.history
         assert h is not None
         assert h.last_fn is not None
@@ -260,6 +265,7 @@ class Tensor:
         ]
 
     def backward(self, grad_output: Optional[Tensor] = None) -> None:
+        """Performs backpropagation to compute gradients."""
         if grad_output is None:
             assert self.shape == (1,), "Must provide grad_output if non-scalar"
             grad_output = Tensor.make([1.0], (1,), backend=self.backend)
@@ -287,11 +293,12 @@ class Tensor:
     # TODO: Implement for Task 2.3.
     @property
     def size(self) -> int:
+        """Returns the number of elements in the tensor."""
         return int(operators.prod(self.shape))
 
     @property
     def dims(self) -> int:
-        return len(self.shape)
+        """Returns the number of dimensions of the tensor."""
 
     def __add__(self, b: TensorLike) -> Tensor:
         return Add.apply(self, self._ensure_tensor(b))
