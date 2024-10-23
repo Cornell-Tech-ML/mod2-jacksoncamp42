@@ -93,9 +93,11 @@ class Tensor:
         self.f = backend
 
     def requires_grad_(self, x: bool) -> None:
+        """Sets requires_grad flag for the tensor."""
         self.history = History()
 
     def requires_grad(self) -> bool:
+        """Checks if the tensor requires gradient computation."""
         return self.history is not None
 
     def to_numpy(self) -> npt.NDArray[np.float64]:
@@ -319,6 +321,7 @@ class Tensor:
         return Mul.apply(self._ensure_tensor(b), self)
 
     def all(self, dim: Optional[int] = None) -> Tensor:
+        """Returns True if all elements are true, optionally along a dimension."""
         if dim is None:
             # When no dimension is specified, we want to check if all elements are True
             return All.apply(
@@ -328,21 +331,26 @@ class Tensor:
         return All.apply(self, Tensor.make([dim], (1,), backend=self.backend))
 
     def is_close(self, b: Tensor) -> Tensor:
+        """Returns a tensor comparing element-wise closeness to another tensor."""
         return IsClose.apply(self, b)
 
     def sigmoid(self) -> Tensor:
+        """Applies the sigmoid function to the tensor."""
         return Sigmoid.apply(self)
 
     def relu(self) -> Tensor:
-        return ReLU.apply(self)
+        """Applies the ReLU function to the tensor."""
 
     def log(self) -> Tensor:
+        """Applies the logarithm function to the tensor."""
         return Log.apply(self)
 
     def exp(self) -> Tensor:
+        """Applies the exponential function to the tensor."""
         return Exp.apply(self)
 
     def sum(self, dim: Optional[int] = None) -> Tensor:
+        """Returns the sum of elements, optionally along a specified dimension."""
         if dim is None:
             # Sum all elements into a single scalar value
             return Sum.apply(
@@ -354,12 +362,14 @@ class Tensor:
             return Sum.apply(self, Tensor.make([dim], (1,), backend=self.backend))
 
     def mean(self, dim: Optional[int] = None) -> Tensor:
+        """Returns the mean of elements, optionally along a specified dimension."""
         if dim is None:
             return self.sum() / self.size
         else:
             return self.sum(dim) / self.shape[dim]
 
     def permute(self, *order: Optional[int]) -> Tensor:
+        """Permutes the dimensions of the tensor according to the given order."""
         if not order:
             return self
         return Permute.apply(
@@ -371,6 +381,7 @@ class Tensor:
         )
 
     def view(self, *shape: Optional[int]) -> Tensor:
+        """Reshapes the tensor to the specified shape."""
         new_shape = []
         for s in shape:
             if s is None:
@@ -384,4 +395,5 @@ class Tensor:
         )
 
     def zero_grad_(self) -> None:
+        """Resets the gradients of the tensor to None."""
         self.grad = None
