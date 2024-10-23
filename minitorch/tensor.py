@@ -299,6 +299,7 @@ class Tensor:
     @property
     def dims(self) -> int:
         """Returns the number of dimensions of the tensor."""
+        return len(self.shape)
 
     def __add__(self, b: TensorLike) -> Tensor:
         return Add.apply(self, self._ensure_tensor(b))
