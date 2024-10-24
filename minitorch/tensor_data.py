@@ -64,8 +64,7 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
 
     """
     # TODO: Implement for Task 2.1.
-    shape_tuple = tuple(int(s) for s in shape)  # Convert to tuple of ints
-    strides = strides_from_shape(shape_tuple)
+    strides = strides_from_shape(shape)
 
     for i, s in enumerate(strides):
         out_index[i] = ordinal // s
@@ -147,9 +146,6 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
 
 def strides_from_shape(shape: UserShape) -> UserStrides:
     """Return a contiguous stride for a shape"""
-    if isinstance(shape, np.ndarray):
-        shape = tuple(shape.tolist())  # Convert numpy array to tuple
-
     layout = [1]
     offset = 1
     for s in reversed(shape):

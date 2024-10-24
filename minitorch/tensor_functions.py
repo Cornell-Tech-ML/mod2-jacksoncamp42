@@ -109,12 +109,10 @@ class Add(Function):
 
 class All(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: Union[Tensor, int, None]) -> Tensor:
+    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
         """Return 1 if all are true"""
         if dim is not None:
-            # Fix: Check if dim is Tensor before calling .item()
-            dim_val = int(dim.item()) if isinstance(dim, Tensor) else int(dim)
-            return a.f.mul_reduce(a, dim_val)
+            return a.f.mul_reduce(a, int(dim.item()))
         else:
             return a.f.mul_reduce(a.contiguous().view(int(operators.prod(a.shape))), 0)
 
@@ -215,16 +213,15 @@ class Sum(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, dim: Union[Tensor, int]) -> Tensor:
         """Returns the sum of the input tensor along the specified dimension."""
-        # Fix: Check if dim is Tensor before calling .item()
-        # The error was in the type checking logic
-        dim_val = (
-            int(dim.item()) if isinstance(dim, Tensor) else dim
-        )  # Changed this line
+        if isinstance(dim, int):
+            dim_val = dim
+        else:
+            dim_val = int(dim.item())
         ctx.save_for_backward(a.shape, dim_val)
         return a.f.add_reduce(a, dim_val)
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
         """Returns the gradient for the sum operation."""
         input_shape, dim = ctx.saved_values
         grad_input = grad_output
@@ -236,8 +233,7 @@ class Sum(Function):
         grad_input = grad_input.view(*new_shape)
         grad_input = grad_input + zeros(input_shape)
 
-        # Return Tensor instead of float for the second element
-        return grad_input, zeros(())  # Return a scalar tensor instead of 0.0
+        return grad_input, 0.0
 
 
 class LT(Function):
@@ -283,8 +279,7 @@ class Permute(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, *order: int) -> Tensor:
         """Returns the tensor with permuted dimensions."""
-        # Fix: Add type checking before calling .item()
-        order_ints = tuple(int(o.item()) if isinstance(o, Tensor) else o for o in order)
+        order_ints = tuple(int(o.item()) if hasattr(o, "_tensor") else o for o in order)
         ctx.save_for_backward(order_ints)
         return a._new(a._tensor.permute(*order_ints))
 
@@ -296,8 +291,7 @@ class Permute(Function):
         for i, p in enumerate(order):
             inv_order[p] = i
         grad_input = grad_output.permute(*inv_order)
-        # Fix: Convert the zeros to Tensors
-        return (grad_input,) + tuple(zeros(()) for _ in order)
+        return (grad_input,) + tuple(0.0 for _ in order)
 
 
 class View(Function):
@@ -314,14 +308,14 @@ class View(Function):
         )
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
         """Returns the gradient for the reshaped tensor."""
         (original,) = ctx.saved_values
         return (
             minitorch.Tensor.make(
                 grad_output._tensor._storage, original, backend=grad_output.backend
             ),
-            zeros(()),  # Return a scalar tensor instead of 0.0
+            0.0,
         )
 
 
@@ -469,7 +463,6 @@ def grad_central_difference(
     f: Any, *vals: Tensor, arg: int = 0, epsilon: float = 1e-6, ind: UserIndex
 ) -> float:
     """Computes the central difference approximation of the gradient for a given function."""
-
     x = vals[arg]
     up = zeros(x.shape)
     up[ind] = epsilon
