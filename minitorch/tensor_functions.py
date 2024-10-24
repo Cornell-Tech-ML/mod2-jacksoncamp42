@@ -109,10 +109,12 @@ class Add(Function):
 
 class All(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
+    def forward(ctx: Context, a: Tensor, dim: Union[Tensor, int, None]) -> Tensor:
         """Return 1 if all are true"""
         if dim is not None:
-            return a.f.mul_reduce(a, int(dim.item()))
+            # Fix: Check if dim is Tensor before calling .item()
+            dim_val = int(dim.item()) if isinstance(dim, Tensor) else int(dim)
+            return a.f.mul_reduce(a, dim_val)
         else:
             return a.f.mul_reduce(a.contiguous().view(int(operators.prod(a.shape))), 0)
 
@@ -292,7 +294,8 @@ class Permute(Function):
         for i, p in enumerate(order):
             inv_order[p] = i
         grad_input = grad_output.permute(*inv_order)
-        return (grad_input,) + tuple(0.0 for _ in order)
+        # Fix: Convert the zeros to Tensors
+        return (grad_input,) + tuple(zeros(()) for _ in order)
 
 
 class View(Function):
