@@ -216,11 +216,10 @@ class Sum(Function):
     def forward(ctx: Context, a: Tensor, dim: Union[Tensor, int]) -> Tensor:
         """Returns the sum of the input tensor along the specified dimension."""
         # Fix: Check if dim is Tensor before calling .item()
-        if isinstance(dim, int):
-            dim_val = dim
-        else:
-            # Error was here - need to check if it's a Tensor
-            dim_val = int(dim.item()) if isinstance(dim, Tensor) else int(dim)
+        # The error was in the type checking logic
+        dim_val = (
+            int(dim.item()) if isinstance(dim, Tensor) else dim
+        )  # Changed this line
         ctx.save_for_backward(a.shape, dim_val)
         return a.f.add_reduce(a, dim_val)
 
