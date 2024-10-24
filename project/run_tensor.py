@@ -5,13 +5,59 @@ Be sure you have minitorch installed in you Virtual Env.
 
 import minitorch
 
+
 # Use this function to make a random parameter in
 # your module.
 def RParam(*shape):
     r = 2 * (minitorch.rand(shape) - 0.5)
     return minitorch.Parameter(r)
 
+
 # TODO: Implement for Task 2.5.
+class Module:
+    def __init__(self):
+        self.training = True
+        self._parameters = {}
+
+    def parameters(self):
+        return self._parameters.values()
+
+    def add_parameter(self, k, v):
+        self._parameters[k] = v
+        return v
+
+
+class Linear(Module):
+    def __init__(self, in_size, out_size):
+        super().__init__()
+        self.weights = RParam(in_size, out_size)
+        self.bias = RParam(out_size)
+        self.add_parameter("weights", self.weights)
+        self.add_parameter("bias", self.bias)
+
+    def forward(self, x):
+        return x @ self.weights + self.bias
+
+
+class Network(Module):
+    def __init__(self, hidden_layers):
+        super().__init__()
+        # First layer (input -> hidden)
+        self.layer1 = Linear(2, hidden_layers)
+        # Second layer (hidden -> hidden)
+        self.layer2 = Linear(hidden_layers, hidden_layers)
+        # Third layer (hidden -> output)
+        self.layer3 = Linear(hidden_layers, 1)
+
+    def forward(self, x):
+        # First layer with ReLU
+        h1 = self.layer1.forward(x).relu()
+        # Second layer with ReLU
+        h2 = self.layer2.forward(h1).relu()
+        # Output layer with Sigmoid
+        out = self.layer3.forward(h2).sigmoid()
+        return out
+
 
 def default_log_fn(epoch, total_loss, correct, losses):
     print("Epoch ", epoch, " loss ", total_loss, "correct", correct)
@@ -67,4 +113,5 @@ if __name__ == "__main__":
     HIDDEN = 2
     RATE = 0.5
     data = minitorch.datasets["Simple"](PTS)
+    TensorTrain(HIDDEN).train(data, RATE)
     TensorTrain(HIDDEN).train(data, RATE)
