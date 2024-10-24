@@ -215,10 +215,12 @@ class Sum(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, dim: Union[Tensor, int]) -> Tensor:
         """Returns the sum of the input tensor along the specified dimension."""
+        # Fix: Check if dim is Tensor before calling .item()
         if isinstance(dim, int):
             dim_val = dim
         else:
-            dim_val = int(dim.item())
+            # Error was here - need to check if it's a Tensor
+            dim_val = int(dim.item()) if isinstance(dim, Tensor) else int(dim)
         ctx.save_for_backward(a.shape, dim_val)
         return a.f.add_reduce(a, dim_val)
 
@@ -312,14 +314,14 @@ class View(Function):
         )
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         """Returns the gradient for the reshaped tensor."""
         (original,) = ctx.saved_values
         return (
             minitorch.Tensor.make(
                 grad_output._tensor._storage, original, backend=grad_output.backend
             ),
-            0.0,
+            zeros(()),  # Return a scalar tensor instead of 0.0
         )
 
 
