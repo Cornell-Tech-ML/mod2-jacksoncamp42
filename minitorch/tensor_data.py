@@ -146,6 +146,9 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
 
 def strides_from_shape(shape: UserShape) -> UserStrides:
     """Return a contiguous stride for a shape"""
+    if isinstance(shape, np.ndarray):
+        shape = tuple(shape.tolist())  # Convert numpy array to tuple
+
     layout = [1]
     offset = 1
     for s in reversed(shape):
